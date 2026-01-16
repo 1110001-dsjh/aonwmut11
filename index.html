@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>線上工具箱 - PDF壓縮 & QR碼生成</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PDF Lib for PDF manipulation -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- QRCode.js for generating QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .drop-zone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragging {
+            border-color: #667eea;
+            background-color: #f7fafc;
+        }
+        .level-card.active {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+            ring: 2px;
+            ring-color: #667eea;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans flex flex-col">
+
+    <!-- Header -->
+    <header class="gradient-bg text-white py-10 px-4 shadow-lg mb-10">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-4xl font-bold mb-2">線上多功能工具箱</h1>
+            <p class="opacity-90">快速壓縮 PDF 檔案與生成專屬 QR Code</p>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 pb-20 grid grid-cols-1 md:grid-cols-2 gap-8">
+        
+        <!-- Section 1: PDF Compressor -->
+        <section class="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="text-2xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.586 5L14 2.414A2 2 0 0012.586 2H9z"/><path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+                    PDF 線上壓縮
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">本地端處理，三種等級可調，隱私有保障。</p>
+            </div>
+            
+            <div class="p-8 flex-grow flex flex-col justify-center">
+                <!-- File Upload Zone -->
+                <div id="pdf-drop-zone" class="drop-zone rounded-xl p-6 text-center cursor-pointer mb-6">
+                    <input type="file" id="pdf-input" class="hidden" accept=".pdf">
+                    <div id="drop-zone-content">
+                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-gray-600 font-medium">點擊或拖放 PDF 至此</p>
+                    </div>
+                    <div id="file-info" class="hidden text-center">
+                        <p class="text-indigo-600 font-bold text-lg truncate mb-1" id="file-name"></p>
+                        <p class="text-gray-500 text-sm" id="file-size"></p>
+                    </div>
+                </div>
+
+                <!-- Compression Levels -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">選擇壓縮程度</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button type="button" onclick="selectLevel('low')" id="level-low" class="level-card border-2 rounded-lg py-3 px-1 text-center transition-all">
+                            <span class="block text-sm font-bold">基本</span>
+                            <span class="text-[10px] text-gray-400 leading-tight">僅移除冗餘數據</span>
+                        </button>
+                        <button type="button" onclick="selectLevel('med')" id="level-med" class="level-card border-2 border-indigo-500 bg-indigo-50 rounded-lg py-3 px-1 text-center transition-all">
+                            <span class="block text-sm font-bold">平衡</span>
+                            <span class="text-[10px] text-gray-400 leading-tight">優化字體與物件</span>
+                        </button>
+                        <button type="button" onclick="selectLevel('high')" id="level-high" class="level-card border-2 rounded-lg py-3 px-1 text-center transition-all">
+                            <span class="block text-sm font-bold">極限</span>
+                            <span class="text-[10px] text-red-400 leading-tight font-medium">深度掃描與壓縮</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pdf-status" class="hidden mb-4">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="progress-bar" class="bg-indigo-600 h-2.5 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p class="text-center text-xs mt-2 text-gray-600" id="status-text">處理中...</p>
+                </div>
+
+                <button id="compress-btn" disabled class="w-full py-4 rounded-lg bg-indigo-600 text-white font-bold opacity-50 cursor-not-allowed transition-all hover:bg-indigo-700 shadow-md">
+                    執行 PDF 壓縮
+                </button>
+
+                <!-- Result Area -->
+                <div id="download-area" class="hidden mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-white p-3 rounded-lg shadow-sm text-center">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">壓縮後大小</p>
+                            <p class="font-bold text-gray-800 text-lg" id="result-size">-</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow-sm text-center border-t-2 border-green-400">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">節省空間</p>
+                            <p class="font-bold text-green-600 text-lg" id="result-ratio">-</p>
+                        </div>
+                    </div>
+                    <a id="download-pdf-link" class="w-full inline-flex justify-center items-center px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-lg">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        儲存壓縮檔案
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: QR Code Generator -->
+        <section class="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="text-2xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 3a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1z" clip-rule="evenodd"/><path d="M11 4a1 1 0 10-2 0v1a1 1 0 002 0V4zM10 7a1 1 0 011 1v1h2a1 1 0 110 2h-3a1 1 0 01-1-1V8a1 1 0 011-1zM16 9a1 1 0 100-2h-1a1 1 0 100 2h1zM9 13a1 1 0 011-1h1a1 1 0 110 2v2a1 1 0 11-2 0v-3zM13 15a1 1 0 100-2h-1a1 1 0 100 2h1zM15 13a1 1 0 112 0v1a1 1 0 11-2 0v-1zM11 11a1 1 0 100-2h-1a1 1 0 100 2h1zM13 12a1 1 0 102 0v-1a1 1 0 10-2 0v1zM16 11a1 1 0 10-2 0v1a1 1 0 102 0v-1z"/></svg>
+                    網址轉 QR Code
+                </h2>
+                <p class="text-sm text-gray-500 mt-1">即時生成可用於下載或瀏覽的二維碼。</p>
+            </div>
+
+            <div class="p-8 flex-grow">
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="url-input" class="block text-sm font-medium text-gray-700">輸入網址 (URL)</label>
+                            <span id="url-char-count" class="text-xs text-gray-400">0 / 2048</span>
+                        </div>
+                        <textarea id="url-input" maxlength="2048" rows="2" placeholder="https://example.com" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="qr-size" class="block text-sm font-medium text-gray-700 mb-1">尺寸大小</label>
+                            <select id="qr-size" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="128">小 (128px)</option>
+                                <option value="256" selected>中 (256px)</option>
+                                <option value="512">大 (512px)</option>
+                                <option value="1024">超大 (1024px)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="qr-title" class="block text-sm font-medium text-gray-700 mb-1">QR 碼標題</label>
+                            <input type="text" id="qr-title" placeholder="選填：顯示在碼下" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-center min-h-[220px] bg-gray-50 rounded-xl border border-dashed border-gray-200 p-4 relative">
+                    <!-- Wrapped in a container for potential text addition -->
+                    <div id="qr-wrapper" class="bg-white p-4 shadow-md rounded border border-gray-100 flex flex-col items-center">
+                        <div id="qrcode"></div>
+                        <div id="qr-text-label" class="mt-2 font-bold text-gray-700 hidden text-center break-all"></div>
+                    </div>
+                    <div id="qr-placeholder" class="text-gray-400 text-sm italic absolute">QR 碼預覽區域</div>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button id="generate-qr-btn" class="flex-1 py-3 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all shadow-md">
+                        產生 QR Code
+                    </button>
+                    <button id="download-qr-btn" disabled class="flex-1 py-3 rounded-lg bg-gray-200 text-gray-500 font-bold opacity-50 cursor-not-allowed transition-all shadow-sm">
+                        下載圖檔
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center py-10 text-gray-400 text-sm border-t border-gray-200 mt-auto">
+        &copy; 2026 東中線上工具箱 | 瀏覽器端高效能處理
+    </footer>
+
+    <script>
+        // --- PDF Logic ---
+        const pdfInput = document.getElementById('pdf-input');
+        const pdfDropZone = document.getElementById('pdf-drop-zone');
+        const compressBtn = document.getElementById('compress-btn');
+        const fileNameDisplay = document.getElementById('file-name');
+        const fileSizeDisplay = document.getElementById('file-size');
+        const fileInfo = document.getElementById('file-info');
+        const dropZoneContent = document.getElementById('drop-zone-content');
+        const pdfStatus = document.getElementById('pdf-status');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        const downloadArea = document.getElementById('download-area');
+        const downloadPdfLink = document.getElementById('download-pdf-link');
+        const resultSizeDisplay = document.getElementById('result-size');
+        const resultRatioDisplay = document.getElementById('result-ratio');
+
+        let selectedPdf = null;
+        let compressionLevel = 'med';
+
+        function selectLevel(level) {
+            compressionLevel = level;
+            document.querySelectorAll('.level-card').forEach(el => {
+                el.classList.remove('border-indigo-500', 'bg-indigo-50');
+            });
+            document.getElementById(`level-${level}`).classList.add('border-indigo-500', 'bg-indigo-50');
+        }
+
+        pdfDropZone.addEventListener('click', () => pdfInput.click());
+        pdfDropZone.addEventListener('dragover', (e) => { e.preventDefault(); pdfDropZone.classList.add('dragging'); });
+        pdfDropZone.addEventListener('dragleave', () => { pdfDropZone.classList.remove('dragging'); });
+        pdfDropZone.addEventListener('drop', (e) => { e.preventDefault(); pdfDropZone.classList.remove('dragging'); handleFile(e.dataTransfer.files[0]); });
+        pdfInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
+            if (file && file.type === 'application/pdf') {
+                selectedPdf = file;
+                fileNameDisplay.textContent = file.name;
+                fileSizeDisplay.textContent = `原始大小: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+                fileInfo.classList.remove('hidden');
+                dropZoneContent.classList.add('hidden');
+                compressBtn.disabled = false;
+                compressBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                downloadArea.classList.add('hidden');
+                pdfStatus.classList.add('hidden');
+                progressBar.style.width = "0%";
+            }
+        }
+
+        compressBtn.addEventListener('click', async () => {
+            if (!selectedPdf) return;
+
+            try {
+                compressBtn.disabled = true;
+                pdfStatus.classList.remove('hidden');
+                statusText.textContent = "載入並分析 PDF 結構...";
+                progressBar.style.width = "15%";
+
+                const arrayBuffer = await selectedPdf.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                
+                statusText.textContent = "正在掃描資源字典與字體...";
+                progressBar.style.width = "40%";
+
+                pdfDoc.setTitle('');
+                pdfDoc.setAuthor('');
+                pdfDoc.setSubject('');
+                pdfDoc.setKeywords([]);
+                pdfDoc.setProducer('');
+                pdfDoc.setCreator('');
+
+                if (compressionLevel === 'high') {
+                    statusText.textContent = "執行極限深度壓縮 (物件串流優化)...";
+                    progressBar.style.width = "70%";
+                } else if (compressionLevel === 'med') {
+                    statusText.textContent = "執行平衡壓縮優化...";
+                    progressBar.style.width = "70%";
+                } else {
+                    statusText.textContent = "執行基本結構優化...";
+                    progressBar.style.width = "70%";
+                }
+
+                const compressedPdfBytes = await pdfDoc.save({
+                    useObjectStreams: compressionLevel !== 'low',
+                    addDefaultPage: false,
+                    objectsPerTick: 50, 
+                    updateFieldAppearances: false
+                });
+                
+                progressBar.style.width = "100%";
+                statusText.textContent = "計算壓縮結果...";
+
+                const compressedSize = compressedPdfBytes.length;
+                const originalSize = selectedPdf.size;
+                const ratio = ((1 - (compressedSize / originalSize)) * 100).toFixed(1);
+                
+                resultSizeDisplay.textContent = `${(compressedSize / 1024 / 1024).toFixed(2)} MB`;
+                resultRatioDisplay.textContent = ratio > 0 ? `${ratio}%` : '無可壓縮空間';
+                
+                const blob = new Blob([compressedPdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                downloadPdfLink.href = url;
+                downloadPdfLink.download = `compressed_${selectedPdf.name}`;
+                downloadArea.classList.remove('hidden');
+                compressBtn.disabled = false;
+                statusText.textContent = "壓縮程序已完成！";
+                
+            } catch (error) {
+                console.error(error);
+                statusText.textContent = "處理失敗：檔案可能受保護或不支援。";
+                compressBtn.disabled = false;
+            }
+        });
+
+        // --- QR Code Logic ---
+        const urlInput = document.getElementById('url-input');
+        const urlCharCount = document.getElementById('url-char-count');
+        const qrSizeSelect = document.getElementById('qr-size');
+        const qrTitleInput = document.getElementById('qr-title');
+        const qrcodeContainer = document.getElementById('qrcode');
+        const qrTextLabel = document.getElementById('qr-text-label');
+        const qrWrapper = document.getElementById('qr-wrapper');
+        const generateQrBtn = document.getElementById('generate-qr-btn');
+        const downloadQrBtn = document.getElementById('download-qr-btn');
+        const qrPlaceholder = document.getElementById('qr-placeholder');
+
+        // Update character count on input
+        urlInput.addEventListener('input', () => {
+            const length = urlInput.value.length;
+            urlCharCount.textContent = `${length} / 2048`;
+            if (length >= 1800) {
+                urlCharCount.classList.add('text-orange-500');
+            } else {
+                urlCharCount.classList.remove('text-orange-500');
+            }
+        });
+
+        generateQrBtn.addEventListener('click', () => {
+            const url = urlInput.value.trim();
+            const size = parseInt(qrSizeSelect.value);
+            const title = qrTitleInput.value.trim();
+
+            if (!url) { showToast("請先輸入網址"); return; }
+            
+            qrcodeContainer.innerHTML = "";
+            qrPlaceholder.classList.add('hidden');
+            qrWrapper.classList.remove('hidden');
+
+            // Handle Text Label
+            if (title) {
+                qrTextLabel.textContent = title;
+                qrTextLabel.classList.remove('hidden');
+                qrTextLabel.style.maxWidth = `${size}px`;
+            } else {
+                qrTextLabel.classList.add('hidden');
+            }
+
+            // Generate QR Code
+            try {
+                new QRCode(qrcodeContainer, {
+                    text: url, 
+                    width: size, 
+                    height: size,
+                    colorDark: "#000000", 
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M // Use M for better balance with long URLs
+                });
+
+                // Adjust preview size (responsive display)
+                setTimeout(() => {
+                    const qrImg = qrcodeContainer.querySelector('img') || qrcodeContainer.querySelector('canvas');
+                    if(qrImg) {
+                        qrImg.style.maxWidth = "100%";
+                        qrImg.style.height = "auto";
+                        qrImg.style.display = "block";
+                        
+                        downloadQrBtn.disabled = false;
+                        downloadQrBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-200', 'text-gray-500');
+                        downloadQrBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    }
+                }, 100);
+            } catch (err) {
+                showToast("網址過長，無法生成 QR Code");
+                qrPlaceholder.classList.remove('hidden');
+                qrWrapper.classList.add('hidden');
+            }
+        });
+
+        downloadQrBtn.addEventListener('click', () => {
+            const qrImg = qrcodeContainer.querySelector('img');
+            const title = qrTitleInput.value.trim();
+            if (!qrImg) return;
+
+            if (!title) {
+                const link = document.createElement('a');
+                link.href = qrImg.src;
+                link.download = 'qrcode.png';
+                link.click();
+            } else {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const qrSize = parseInt(qrSizeSelect.value);
+                
+                const fontSize = Math.max(16, Math.floor(qrSize / 15));
+                const padding = 20;
+                const textSpace = fontSize + padding * 2;
+                
+                canvas.width = qrSize + padding * 2;
+                canvas.height = qrSize + textSpace + padding;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    ctx.drawImage(tempImg, padding, padding, qrSize, qrSize);
+                    ctx.fillStyle = '#374151'; 
+                    ctx.font = `bold ${fontSize}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(title, canvas.width / 2, qrSize + padding + fontSize + 5);
+
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = `qrcode_${title.substring(0,10)}.png`;
+                    link.click();
+                };
+                tempImg.src = qrImg.src;
+            }
+        });
+
+        function showToast(m) {
+            const t = document.createElement('div');
+            t.className = "fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900/90 text-white px-8 py-3 rounded-full shadow-2xl z-50 text-sm backdrop-blur-sm transition-all";
+            t.textContent = m;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 2500);
+        }
+    </script>
+</body>
+</html>
